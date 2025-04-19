@@ -13,13 +13,18 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
 import CartPage from "./pages/CartPage";
+import BrandDashboardPage from "./pages/BrandDashboardPage";
+import TesterDashboardPage from "./pages/TesterDashboardPage";
+import DashboardPage from "./pages/DashboardPage";
 
 // Components
 import PrivateRoute from "./components/PrivateRoute";
 import Navbar from "./components/Navbar";
 import ChatBox from "./components/ChatBox";
 import PageTransition from "./components/PageTransition";
-import GlobalLoadingIndicator, { LoadingProvider } from "./components/GlobalLoadingIndicator";
+import GlobalLoadingIndicator, {
+  LoadingProvider,
+} from "./components/GlobalLoadingIndicator";
 
 function App() {
   return (
@@ -31,7 +36,7 @@ function App() {
               <div className="min-h-screen bg-gray-50">
                 {/* Navigation */}
                 <Navbar />
-                
+
                 {/* Global Loading Indicator */}
                 <GlobalLoadingIndicator />
 
@@ -42,7 +47,10 @@ function App() {
                       {/* Public Routes */}
                       <Route path="/" element={<ProductsPage />} />
                       <Route path="/products" element={<ProductsPage />} />
-                      <Route path="/products/:id" element={<ProductDetailsPage />} />
+                      <Route
+                        path="/products/:id"
+                        element={<ProductDetailsPage />}
+                      />
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
                       <Route path="/cart" element={<CartPage />} />
@@ -51,6 +59,24 @@ function App() {
                       <Route
                         path="/profile"
                         element={<PrivateRoute element={<ProfilePage />} />}
+                      />
+                      <Route
+                        path="/brand/dashboard"
+                        element={
+                          <PrivateRoute
+                            element={<BrandDashboardPage />}
+                            allowedRoles={["Brand", "admin"]}
+                          />
+                        }
+                      />
+                      <Route
+                        path="/tester/dashboard"
+                        element={
+                          <PrivateRoute
+                            element={<TesterDashboardPage />}
+                            allowedRoles={["User", "admin"]}
+                          />
+                        }
                       />
                       <Route
                         path="/products/new"
@@ -78,7 +104,8 @@ function App() {
                 <footer className="bg-white border-t border-gray-200 py-8 mt-12">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <p className="text-center text-gray-500 text-sm">
-                      &copy; {new Date().getFullYear()} Try Karo. All rights reserved.
+                      &copy; {new Date().getFullYear()} Try Karo. All rights
+                      reserved.
                     </p>
                   </div>
                 </footer>

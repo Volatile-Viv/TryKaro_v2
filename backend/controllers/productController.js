@@ -172,17 +172,20 @@ exports.getProduct = async (req, res) => {
 // @access  Private
 exports.createProduct = async (req, res) => {
   try {
-    // Remove the check for files - make image upload optional
-    // If an image URL is provided in the request body, use that instead
-
-    // Process inventory management - if manageInventory is false, set inventory to null
+    // Process inventory management - if manageInventory is false, set inventory value
     if (req.body.manageInventory === false) {
-      req.body.inventory = null;
+      // If not managing inventory, set high inventory to indicate unlimited
+      req.body.inventory = 9999;
+    } else {
+      // Initialize inventory with the provided value or default to 0
+      req.body.inventory = req.body.inventory || 0;
+      // Set inStock based on inventory level
+      req.body.inStock = req.body.inventory > 0;
     }
 
     // Add maker to req.body
     req.body.maker = req.user.id;
-    
+
     // Create product
     const product = await Product.create(req.body);
 
@@ -221,9 +224,13 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
-    // Process inventory management - if manageInventory is false, set inventory to null
+    // Process inventory management - if manageInventory is false, set high inventory
     if (req.body.manageInventory === false) {
-      req.body.inventory = null;
+      // If not managing inventory, set high inventory to indicate unlimited
+      req.body.inventory = 9999;
+    } else if (req.body.inventory !== undefined) {
+      // Update inStock based on new inventory level
+      req.body.inStock = req.body.inventory > 0;
     }
 
     // Update with the provided fields including image URL if provided
@@ -272,6 +279,100 @@ exports.deleteProduct = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {},
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// @desc    Get products created by the logged in user
+// @route   GET /api/products/user
+// @access  Private
+exports.getUserProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ maker: req.user.id })
+      .sort("-createdAt")
+      .populate({
+        path: "maker",
+        select: "name avatar",
+      });
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products,
+    });
+  } catch (error) {
+    console.error("Error fetching user products:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching user products",
+    });
+  }
+};
+
+// @desc    Update product inventory
+// @route   PUT /api/products/:id/inventory
+// @access  Private (Product owner or Admin)
+exports.updateInventory = async (req, res) => {
+  try {
+    const { quantity } = req.body;
+
+    if (quantity === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity is required",
+      });
+    }
+
+    let product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Make sure user is product owner or admin
+    if (product.maker.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this product",
+      });
+    }
+
+    // If we're not managing inventory, no need to update
+    if (!product.manageInventory) {
+      return res.status(200).json({
+        success: true,
+        data: product,
+      });
+    }
+
+    // Update inventory
+    const newInventory = Math.max(0, product.inventory - quantity);
+
+    // Update product inventory and inStock status
+    product = await Product.findByIdAndUpdate(
+      req.params.id,
+      {
+        inventory: newInventory,
+        inStock: newInventory > 0,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: product,
     });
   } catch (error) {
     console.error(error);

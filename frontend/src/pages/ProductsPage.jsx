@@ -216,7 +216,7 @@ const ProductsPage = () => {
               onChange={(e) => handleStatusChange(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Statuses</option>
+              <option value="">All Status</option>
               {STATUSES.map((status) => (
                 <option key={status} value={status}>
                   {status.charAt(0).toUpperCase() + status.slice(1)}

@@ -16,12 +16,18 @@ const ProductCard = ({ product, isBrand, isOwnProduct }) => {
   // Default image if not provided
   const imageUrl =
     product.image || "https://via.placeholder.com/300x200?text=No+Image";
-    
+
   // Check if product is a trial product (price is 0)
   const isTrialProduct = parseFloat(product.price) === 0;
-  
+
   // Check if product is out of stock
-  const isOutOfStock = product.manageInventory && product.inventory <= 0;
+  // If manageInventory is false, use the inStock flag directly
+  // Otherwise check stock or inventory values (prioritize inventory if present)
+  const availableStock =
+    product.inventory !== undefined ? product.inventory : product.stock;
+  const isOutOfStock = product.manageInventory
+    ? availableStock <= 0
+    : !product.inStock;
 
   // Handle add to cart
   const handleAddToCart = () => {
@@ -30,43 +36,43 @@ const ProductCard = ({ product, isBrand, isOwnProduct }) => {
       window.location.href = "/login";
       return;
     }
-    
+
     // Don't allow adding if out of stock
     if (isOutOfStock) {
       return;
     }
-    
+
     const success = addToCart(product, quantity);
-    
+
     if (success) {
       setAddedToCart(true);
       setShowQuantity(false);
-      
+
       // Reset added to cart status after 1.5 seconds
       setTimeout(() => {
         setAddedToCart(false);
       }, 1500);
     }
   };
-  
+
   // Handle remove from cart
   const handleRemoveFromCart = () => {
     removeFromCart(product._id);
   };
-  
+
   // Handle quantity change
   const handleQuantityChange = (e) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value > 0) {
       // If inventory is managed, don't allow more than available
-      if (product.manageInventory && value > product.inventory) {
-        setQuantity(product.inventory);
+      if (product.manageInventory && value > availableStock) {
+        setQuantity(availableStock);
       } else {
         setQuantity(value);
       }
     }
   };
-  
+
   // Toggle quantity selector
   const toggleQuantity = () => {
     if (!isAuthenticated || isOutOfStock || isInCart(product._id)) {
@@ -84,11 +90,21 @@ const ProductCard = ({ product, isBrand, isOwnProduct }) => {
             alt={product.title}
             className="w-full h-48 object-cover"
           />
-          <div className={`absolute top-0 left-0 px-3 py-1 rounded-br-lg font-medium text-sm
-            ${isOwnProduct ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'}`}>
-            {isOwnProduct ? 'Your Trial Product' : (isTrialProduct ? 'Trial Product' : 'Product')}
+          <div
+            className={`absolute top-0 left-0 px-3 py-1 rounded-br-lg font-medium text-sm
+            ${
+              isOwnProduct
+                ? "bg-green-600 text-white"
+                : "bg-blue-600 text-white"
+            }`}
+          >
+            {isOwnProduct
+              ? "Your Trial Product"
+              : isTrialProduct
+              ? "Trial Product"
+              : "Product"}
           </div>
-          
+
           {isOutOfStock && (
             <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-lg font-medium text-sm bg-red-600 text-white animate-pulse">
               Out of Stock
@@ -145,23 +161,36 @@ const ProductCard = ({ product, isBrand, isOwnProduct }) => {
           </div>
 
           {/* Display inventory information if managed */}
-          {product.manageInventory && (
+          {product.manageInventory ? (
             <div className="mt-2 text-sm">
-              <span className={isOutOfStock ? 'text-red-600 font-medium' : 
-                (product.inventory < 10 ? 'text-orange-600 font-medium' : 'text-gray-600')}>
-                {isOutOfStock 
-                  ? 'Out of Stock' 
-                  : product.inventory < 10 
-                    ? `Only ${product.inventory} left in stock!` 
-                    : `${product.inventory} in stock`}
+              <span
+                className={
+                  isOutOfStock
+                    ? "text-red-600 font-medium"
+                    : availableStock < 10
+                    ? "text-orange-600 font-medium"
+                    : "text-gray-600"
+                }
+              >
+                {isOutOfStock
+                  ? "Out of Stock"
+                  : availableStock < 10
+                  ? `Only ${availableStock} left in stock!`
+                  : `${availableStock} in stock`}
               </span>
-              
-              {product.inventory > 0 && product.inventory < 10 && (
+
+              {availableStock > 0 && availableStock < 10 && (
                 <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 animate-pulse">
                   Low Stock
                 </span>
               )}
             </div>
+          ) : (
+            product.inventory > 0 && (
+              <div className="mt-2 text-sm">
+                <span className="text-green-600 font-medium">In Stock</span>
+              </div>
+            )
           )}
 
           {product.maker && (
@@ -175,21 +204,21 @@ const ProductCard = ({ product, isBrand, isOwnProduct }) => {
                 className="w-6 h-6 rounded-full mr-2"
               />
               <span className="text-xs text-gray-600">
-                By {isOwnProduct ? 'You' : product.maker.name}
+                By {isOwnProduct ? "You" : product.maker.name}
               </span>
             </div>
           )}
         </Link>
-        
+
         {/* Price and Add to Cart section */}
         <div className="mt-4 pt-3 border-t border-gray-100">
           <div className="flex justify-between items-center">
             <div className="font-medium">
-              {parseFloat(product.price) > 0 
-                ? formatPrice(product.price, product.currency || 'INR')
+              {parseFloat(product.price) > 0
+                ? formatPrice(product.price, product.currency || "INR")
                 : "Free Trial"}
             </div>
-            
+
             {!isBrand && !isOwnProduct && !showQuantity && (
               <div className="flex space-x-2">
                 {isInCart(product._id) && (
@@ -198,8 +227,19 @@ const ProductCard = ({ product, isBrand, isOwnProduct }) => {
                     className="px-2 py-1 rounded text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors focus:outline-none"
                     title="Remove from cart"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
                     </svg>
                   </button>
                 )}
@@ -208,45 +248,52 @@ const ProductCard = ({ product, isBrand, isOwnProduct }) => {
                   disabled={addedToCart || isOutOfStock || !isAuthenticated}
                   className={`px-3 py-1.5 rounded text-sm font-medium ${
                     addedToCart
-                      ? 'bg-green-500 text-white'
+                      ? "bg-green-500 text-white"
                       : isInCart(product._id)
-                      ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      ? "bg-gray-100 text-gray-800 hover:bg-gray-200"
                       : isOutOfStock
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                       : !isAuthenticated
-                      ? 'bg-blue-400 text-white cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      ? "bg-blue-400 text-white cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
                   } transition-colors focus:outline-none`}
                 >
-                  {addedToCart 
-                    ? 'Added!' 
-                    : isInCart(product._id) 
-                    ? 'In Cart' 
+                  {addedToCart
+                    ? "Added!"
+                    : isInCart(product._id)
+                    ? "In Cart"
                     : isOutOfStock
-                    ? 'Out of Stock'
-                    : 'Add to Cart'}
+                    ? "Out of Stock"
+                    : "Add to Cart"}
                 </button>
               </div>
             )}
-            
+
             {!isBrand && !isOwnProduct && showQuantity && (
               <div className="flex items-center space-x-2">
                 <div className="flex items-center border rounded overflow-hidden">
-                  <button 
+                  <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600"
                   >
                     -
                   </button>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    value={quantity} 
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantity}
                     onChange={handleQuantityChange}
-                    className="w-10 text-center text-sm py-1 border-x" 
+                    className="w-10 text-center text-sm py-1 border-x"
                   />
-                  <button 
-                    onClick={() => setQuantity(Math.min(product.manageInventory ? product.inventory : 99, quantity + 1))}
+                  <button
+                    onClick={() =>
+                      setQuantity(
+                        Math.min(
+                          product.manageInventory ? availableStock : 99,
+                          quantity + 1
+                        )
+                      )
+                    }
                     className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600"
                   >
                     +
@@ -286,7 +333,9 @@ ProductCard.propTypes = {
     price: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     avgRating: PropTypes.number,
     totalRatings: PropTypes.number,
+    stock: PropTypes.number,
     inventory: PropTypes.number,
+    inStock: PropTypes.bool,
     manageInventory: PropTypes.bool,
     maker: PropTypes.shape({
       _id: PropTypes.string,
@@ -296,7 +345,7 @@ ProductCard.propTypes = {
     currency: PropTypes.string,
   }).isRequired,
   isBrand: PropTypes.bool,
-  isOwnProduct: PropTypes.bool
+  isOwnProduct: PropTypes.bool,
 };
 
 export default ProductCard;

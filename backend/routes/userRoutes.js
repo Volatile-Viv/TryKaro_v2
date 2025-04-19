@@ -1,47 +1,35 @@
 const express = require("express");
-const { check } = require("express-validator");
+const router = express.Router();
 const {
   registerUser,
   loginUser,
   getCurrentUser,
   updateProfile,
   updatePassword,
+  getUserProfile,
+  getUserInsights,
 } = require("../controllers/userController");
 const { protect } = require("../middleware/auth");
 
-const router = express.Router();
-
 // @route   POST /api/users/register
-// @desc    Register a new user
+// @desc    Register user
 // @access  Public
-router.post(
-  "/register",
-  [
-    check("name", "Name is required").not().isEmpty(),
-    check("email", "Please include a valid email").isEmail(),
-    check("password", "Password must be at least 6 characters").isLength({
-      min: 6,
-    }),
-  ],
-  registerUser
-);
+router.post("/register", registerUser);
 
 // @route   POST /api/users/login
-// @desc    Login user and get token
+// @desc    Login user & get token
 // @access  Public
-router.post(
-  "/login",
-  [
-    check("email", "Please include a valid email").isEmail(),
-    check("password", "Password is required").exists(),
-  ],
-  loginUser
-);
+router.post("/login", loginUser);
 
 // @route   GET /api/users/me
-// @desc    Get current user profile
+// @desc    Get current user
 // @access  Private
 router.get("/me", protect, getCurrentUser);
+
+// @route   GET /api/users/profile
+// @desc    Get user profile
+// @access  Private
+router.get("/profile", protect, getUserProfile);
 
 // @route   PUT /api/users/profile
 // @desc    Update user profile
@@ -49,20 +37,13 @@ router.get("/me", protect, getCurrentUser);
 router.put("/profile", protect, updateProfile);
 
 // @route   PUT /api/users/password
-// @desc    Update password
+// @desc    Update user password
 // @access  Private
-router.put(
-  "/password",
-  [
-    check("currentPassword", "Current password is required").not().isEmpty(),
-    check("newPassword", "New password must be at least 6 characters").isLength(
-      {
-        min: 6,
-      }
-    ),
-  ],
-  protect,
-  updatePassword
-);
+router.put("/password", protect, updatePassword);
+
+// @route   GET /api/users/insights
+// @desc    Get user insights
+// @access  Private
+router.get("/insights", protect, getUserInsights);
 
 module.exports = router;

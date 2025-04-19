@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getUserProducts } from '../services/api';
 import Loader from '../components/Loader';
+import UserInsights from '../components/UserInsights';
 
 const BrandDashboardPage = () => {
   const { user, isAuthenticated, isMaker } = useAuth();
@@ -62,26 +63,28 @@ const BrandDashboardPage = () => {
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Brand Dashboard</h1>
-        <Link
-          to="/products/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <svg
-            className="-ml-1 mr-2 h-5 w-5"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        <div className="flex space-x-4">
+          <Link
+            to="/products/new"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
-          Add New Product
-        </Link>
+            <svg
+              className="-ml-1 mr-2 h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            Add New Product
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -157,6 +160,35 @@ const BrandDashboardPage = () => {
             {products.filter(p => p.status === 'in-testing').length}
           </p>
         </div>
+      </div>
+
+      {/* User Insights Dashboard */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">User Insights Dashboard</h2>
+        <div className="bg-blue-50 rounded-lg p-6 mb-6">
+          <div className="flex items-center mb-4">
+            <svg 
+              className="h-6 w-6 text-blue-500 mr-2" 
+              xmlns="http://www.w3.org/2000/svg" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+              />
+            </svg>
+            <h3 className="text-lg font-semibold text-blue-800">Understanding Your Users</h3>
+          </div>
+          <p className="text-blue-700">
+            This dashboard provides comprehensive insights about your users, including demographics, 
+            product ratings, and preferences to help you make data-driven decisions.
+          </p>
+        </div>
+        <UserInsights />
       </div>
 
       {/* Products Table */}

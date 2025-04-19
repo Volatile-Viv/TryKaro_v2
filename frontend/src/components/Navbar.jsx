@@ -4,15 +4,15 @@ import { useCart } from "../context/CartContext";
 import { useState, useEffect } from "react";
 
 const Navbar = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, isMaker, isTester } = useAuth();
   const { getCartCount } = useCart();
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const navigate = useNavigate();
-  
+
   // Check if user is a brand
-  const isBrand = isAuthenticated && user?.role === "Brand";
+  const isBrand = isMaker;
 
   // Calculate total items in cart
   useEffect(() => {
@@ -37,11 +37,11 @@ const Navbar = () => {
   const handleCartClick = (e) => {
     if (!isAuthenticated) {
       e.preventDefault();
-      navigate('/login', { 
-        state: { 
-          from: '/cart',
-          message: 'Please log in to access your cart'
-        } 
+      navigate("/login", {
+        state: {
+          from: "/cart",
+          message: "Please log in to access your cart",
+        },
       });
     }
   };
@@ -51,16 +51,22 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <div 
+            <div
               className="flex-shrink-0 flex items-center"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
               onClick={() => setIsClicked(true)}
             >
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className={`text-2xl md:text-3xl font-bold relative p-2 rounded-lg
-                  ${isClicked ? 'transform scale-90' : isHovered ? 'transform scale-110' : ''}
+                  ${
+                    isClicked
+                      ? "transform scale-90"
+                      : isHovered
+                      ? "transform scale-110"
+                      : ""
+                  }
                   transition-all duration-300 ease-in-out
                   bg-gradient-to-r from-blue-500 to-blue-700 text-transparent bg-clip-text 
                   hover:from-blue-600 hover:to-blue-800
@@ -69,9 +75,11 @@ const Navbar = () => {
                 aria-label="Home"
               >
                 Try Karo
-                <span className={`absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-blue-700 
+                <span
+                  className={`absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-blue-700 
                   transform origin-left transition-transform duration-300 ease-out
-                  ${isHovered ? 'scale-x-100' : 'scale-x-0'}`}></span>
+                  ${isHovered ? "scale-x-100" : "scale-x-0"}`}
+                ></span>
                 {isHovered && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-ping"></span>
                 )}
@@ -100,19 +108,38 @@ const Navbar = () => {
                   </Link>
                 </>
               )}
+              {isTester && (
+                <Link
+                  to="/tester/dashboard"
+                  className="inline-flex items-center px-3 py-2 text-sm md:text-base font-medium text-gray-600 rounded-md hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 active:text-blue-800 transform active:scale-95 transition-all duration-150"
+                >
+                  My Dashboard
+                </Link>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-4">
             {/* Cart Icon - Only for non-brand users */}
             {!isBrand && (
-              <Link 
-                to="/cart" 
+              <Link
+                to="/cart"
                 className="relative group"
                 onClick={handleCartClick}
               >
                 <div className="p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-150">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
                   </svg>
                   {isAuthenticated && itemCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center transform transition-transform group-hover:scale-110">
@@ -122,7 +149,7 @@ const Navbar = () => {
                 </div>
               </Link>
             )}
-            
+
             {isAuthenticated ? (
               <>
                 <Link
@@ -136,8 +163,9 @@ const Navbar = () => {
                         alt="User Avatar"
                         className="w-full h-full object-cover rounded-full"
                       />
-                    ) : 
-                    user.name.charAt(0).toUpperCase()}
+                    ) : (
+                      user.name.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <span className="text-sm md:text-base font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
                     {user.name}

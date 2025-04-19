@@ -66,10 +66,18 @@ export const getProducts = async (params) => {
   try {
     console.log("Fetching products with params:", params);
     const response = await api.get("/products", { params });
+
+    // Add safety checks
+    if (!response.data || !response.data.success) {
+      console.error("Invalid response format from getProducts", response);
+      return { data: { data: [] } };
+    }
+
     return response.data;
   } catch (error) {
     console.error("Error in getProducts:", error);
-    throw error.response?.data || { message: "Error fetching products" };
+    // Return empty data instead of throwing to prevent UI crashes
+    return { success: false, data: { data: [] } };
   }
 };
 
@@ -121,6 +129,17 @@ export const updateProduct = async (id, productData) => {
   }
 };
 
+export const updateProductInventory = async (id, quantity) => {
+  try {
+    const response = await api.put(`/products/${id}/inventory`, { quantity });
+    return response.data;
+  } catch (error) {
+    throw (
+      error.response?.data || { message: "Error updating product inventory" }
+    );
+  }
+};
+
 export const deleteProduct = async (id) => {
   try {
     const response = await api.delete(`/products/${id}`);
@@ -137,6 +156,24 @@ export const getProductReviews = async (productId) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Error fetching reviews" };
+  }
+};
+
+export const getUserReviews = async () => {
+  try {
+    const response = await api.get("/reviews/me");
+
+    // Add safety checks for the response
+    if (!response.data || !response.data.success) {
+      console.error("Invalid response format from getUserReviews", response);
+      return { data: [] };
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching user reviews:", error);
+    // Return empty data instead of throwing to prevent UI crashes
+    return { success: false, count: 0, data: [] };
   }
 };
 
@@ -202,6 +239,15 @@ export const getCurrentUser = async () => {
   }
 };
 
+export const getUserProducts = async () => {
+  try {
+    const response = await api.get("/products/user");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Error fetching user products" };
+  }
+};
+
 export const updateUserProfile = async (profileData) => {
   try {
     const response = await api.put("/users/profile", profileData);
@@ -217,6 +263,16 @@ export const updateUserPassword = async (passwordData) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Error updating password" };
+  }
+};
+
+// Get user insights
+export const getUserInsights = async () => {
+  try {
+    const response = await api.get("/users/insights");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Error fetching user insights" };
   }
 };
 

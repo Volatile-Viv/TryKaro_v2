@@ -6,10 +6,16 @@ const {
   deleteReview,
   addComment,
   deleteComment,
+  getUserReviews,
 } = require("../controllers/reviewController");
 const { protect, authorize } = require("../middleware/auth");
 
 const router = express.Router();
+
+// @route   GET /api/reviews/me
+// @desc    Get all reviews by logged in user
+// @access  Private
+router.get("/me", protect, getUserReviews);
 
 // @route   GET /api/reviews/:id
 // @desc    Get a single review

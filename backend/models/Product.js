@@ -75,13 +75,19 @@ const ProductSchema = new mongoose.Schema(
       default: "INR",
       enum: ["USD", "EUR", "GBP", "INR", "JPY", "CAD", "AUD"],
     },
+    inStock: {
+      type: Boolean,
+      default: true,
+    },
     inventory: {
       type: Number,
+      required: [true, "Please specify the inventory quantity"],
       min: [0, "Inventory cannot be negative"],
+      default: 0,
     },
     manageInventory: {
       type: Boolean,
-      default: false,
+      default: true,
     },
   },
   {
@@ -97,6 +103,13 @@ ProductSchema.virtual("reviews", {
   localField: "_id",
   foreignField: "product",
   justOne: false,
+});
+
+// Add a pre-save hook to update inStock based on inventory level
+ProductSchema.pre("save", function (next) {
+  // If inventory is 0 or less, product is not in stock
+  this.inStock = this.inventory > 0;
+  next();
 });
 
 // Cascade delete reviews when a product is deleted

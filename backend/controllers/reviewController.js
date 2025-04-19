@@ -365,3 +365,39 @@ exports.deleteComment = async (req, res) => {
     });
   }
 };
+
+// @desc    Get comments for a review
+// @route   GET /api/reviews/:id/comments
+// @access  Public
+exports.getComments = async (req, res) => {
+  // ... existing code ...
+};
+
+// @desc    Get all reviews written by the logged in user
+// @route   GET /api/reviews/me
+// @access  Private
+exports.getUserReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ tester: req.user.id })
+      .populate({
+        path: "product",
+        select: "title images category status makerName",
+      })
+      .sort("-createdAt");
+
+    // Make sure reviews have valid product data
+    const validReviews = reviews.filter((review) => review.product);
+
+    res.status(200).json({
+      success: true,
+      count: validReviews.length,
+      data: validReviews,
+    });
+  } catch (error) {
+    console.error("Error in getUserReviews:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};

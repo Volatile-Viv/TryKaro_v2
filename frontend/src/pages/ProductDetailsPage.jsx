@@ -13,7 +13,8 @@ const ProductDetailsPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, isMaker, isTester } = useAuth();
   const { addToCart, isInCart } = useCart();
-  const { convertProductPrice, formatPrice, getCurrencyByCode, currency } = useCurrency();
+  const { convertProductPrice, formatPrice, getCurrencyByCode, currency } =
+    useCurrency();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,7 @@ const ProductDetailsPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
-  
+
   // Check if user is a brand
   const isBrand = isAuthenticated && user?.role === "Brand";
 
@@ -31,6 +32,16 @@ const ProductDetailsPage = () => {
       try {
         setLoading(true);
         const response = await getProduct(id);
+
+        // Log the product data to debug stock issues
+        console.log("Product loaded:", {
+          id: response.data._id,
+          title: response.data.title,
+          inStock: response.data.inStock,
+          manageInventory: response.data.manageInventory,
+          stock: response.data.stock,
+        });
+
         setProduct(response.data);
         setError(null);
       } catch (err) {
@@ -59,28 +70,75 @@ const ProductDetailsPage = () => {
 
   // Handle adding product to cart
   const handleAddToCart = () => {
-    if (product) {
-      // Don't allow adding if out of stock
-      if (product.manageInventory && product.inventory <= 0) {
-        return;
-      }
-      
-      // Check if adding would exceed inventory
-      if (product.manageInventory && quantity > product.inventory) {
-        alert(`Sorry, we only have ${product.inventory} items available.`);
-        return;
-      }
+    if (!product) {
+      console.error("Cannot add to cart: Product is null");
+      return;
+    }
 
-      const success = addToCart(product, quantity);
-      
-      if (success) {
-        setAddedToCart(true);
-        
-        // Reset added to cart status after 3 seconds
-        setTimeout(() => {
-          setAddedToCart(false);
-        }, 3000);
-      }
+    // Use inventory value if available, otherwise use stock
+    const availableStock =
+      product.inventory !== undefined ? product.inventory : product.stock;
+
+    // Log the current product state
+    console.log("Adding product to cart:", {
+      id: product._id,
+      title: product.title,
+      inStock: product.inStock,
+      manageInventory: product.manageInventory,
+      stock: product.stock,
+      inventory: product.inventory,
+      availableStock,
+      quantity: quantity,
+    });
+
+    // Don't allow adding if out of stock
+    if (product.inStock === false) {
+      console.log("Cannot add: Product is out of stock (inStock is false)");
+      alert("Sorry, this product is out of stock!");
+      return;
+    }
+
+    // Check if product has valid stock
+    if (
+      product.manageInventory &&
+      (availableStock === undefined || availableStock === null)
+    ) {
+      console.log("Cannot add: Product has undefined stock");
+      alert(
+        "Sorry, there was an issue with this product's inventory. Please try again later."
+      );
+      return;
+    }
+
+    // Check if product is out of stock (redundant with inStock check, but safer)
+    if (product.manageInventory && availableStock <= 0) {
+      console.log(
+        "Cannot add: Product stock is zero or negative:",
+        availableStock
+      );
+      alert("Sorry, this product is out of stock!");
+      return;
+    }
+
+    // Check if adding would exceed stock
+    if (product.manageInventory && quantity > availableStock) {
+      console.log(
+        `Cannot add: Requested quantity (${quantity}) exceeds available stock (${availableStock})`
+      );
+      alert(`Sorry, we only have ${availableStock} items available.`);
+      return;
+    }
+
+    const success = addToCart(product, quantity);
+    console.log("Add to cart result:", success);
+
+    if (success) {
+      setAddedToCart(true);
+
+      // Reset added to cart status after 3 seconds
+      setTimeout(() => {
+        setAddedToCart(false);
+      }, 3000);
     }
   };
 
@@ -122,24 +180,34 @@ const ProductDetailsPage = () => {
 
   if (!product) return null;
 
+  // Use inventory value if available, otherwise use stock
+  const availableStock =
+    product.inventory !== undefined ? product.inventory : product.stock;
+
+  // Ensure stock and inStock values are consistent
+  const isActuallyInStock = product.manageInventory
+    ? availableStock > 0
+    : product.inStock;
+
   // Get product's original currency or default to USD
-  const productCurrency = product.currency || 'USD';
+  const productCurrency = product.currency || "USD";
   const productCurrencyInfo = getCurrencyByCode(productCurrency);
-  
+
   // Get the converted price in the user's currency
-  const convertedPrice = parseFloat(product.price) > 0 
-    ? convertProductPrice(parseFloat(product.price), productCurrency) 
-    : 0;
-  
-  // Format the price with the current currency symbol  
-  const formattedPrice = parseFloat(product.price) > 0 
-    ? formatPrice(convertedPrice) 
-    : "Free Trial";
-    
+  const convertedPrice =
+    parseFloat(product.price) > 0
+      ? convertProductPrice(parseFloat(product.price), productCurrency)
+      : 0;
+
+  // Format the price with the current currency symbol
+  const formattedPrice =
+    parseFloat(product.price) > 0 ? formatPrice(convertedPrice) : "Free Trial";
+
   // Original price in product's currency
-  const originalPrice = parseFloat(product.price) > 0
-    ? formatPrice(parseFloat(product.price), productCurrency)
-    : "Free Trial";
+  const originalPrice =
+    parseFloat(product.price) > 0
+      ? formatPrice(parseFloat(product.price), productCurrency)
+      : "Free Trial";
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -205,18 +273,23 @@ const ProductDetailsPage = () => {
         {/* Actions */}
         {canModify && (
           <div className="flex space-x-3 mt-4 md:mt-0">
-            <Link 
-              to={`/products/${id}/edit`} 
+            <Link
+              to={`/products/${id}/edit`}
               className="inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transform hover:scale-105 active:scale-95 transition-all duration-150"
             >
-              <svg 
-                className="mr-2 h-5 w-5" 
-                xmlns="http://www.w3.org/2000/svg" 
-                fill="none" 
-                viewBox="0 0 24 24" 
+              <svg
+                className="mr-2 h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
               Edit Product
             </Link>
@@ -224,14 +297,19 @@ const ProductDetailsPage = () => {
               onClick={() => setShowDeleteModal(true)}
               className="inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 active:bg-red-800 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transform hover:scale-105 active:scale-95 transition-all duration-150"
             >
-              <svg 
-                className="mr-2 h-5 w-5" 
-                xmlns="http://www.w3.org/2000/svg" 
-                fill="none" 
-                viewBox="0 0 24 24" 
+              <svg
+                className="mr-2 h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
               </svg>
               Delete
             </button>
@@ -376,30 +454,31 @@ const ProductDetailsPage = () => {
                 <span className="text-gray-600">Price:</span>
                 <span className="font-medium">
                   {formattedPrice}
-                  {parseFloat(product.price) > 0 && productCurrency !== currency.code && (
-                    <span className="text-xs text-gray-500 block">
-                      (Original: {originalPrice})
-                    </span>
-                  )}
+                  {parseFloat(product.price) > 0 &&
+                    productCurrency !== currency.code && (
+                      <span className="text-xs text-gray-500 block">
+                        (Original: {originalPrice})
+                      </span>
+                    )}
                 </span>
               </li>
               {product.manageInventory && (
                 <li className="flex justify-between">
-                  <span className="text-gray-600">Availability:</span>
-                  <span className={`font-medium flex items-center ${
-                    (product.inventory <= 0) 
-                      ? 'text-red-600' 
-                      : (product.inventory < 10)
-                        ? 'text-orange-600'
-                        : ''
-                  }`}>
-                    {product.inventory > 0 
-                      ? product.inventory < 10 
-                        ? `Only ${product.inventory} left in stock!` 
-                        : `${product.inventory} in stock` 
-                      : 'Out of Stock'}
-                      
-                    {product.inventory > 0 && product.inventory < 10 && (
+                  <span className="text-gray-600">Stock Status:</span>
+                  <span
+                    className={`font-medium ${
+                      isActuallyInStock
+                        ? availableStock < 10
+                          ? "text-orange-600"
+                          : "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {isActuallyInStock
+                      ? `In Stock (${availableStock} available)`
+                      : "Out of Stock"}
+
+                    {isActuallyInStock && availableStock < 10 && (
                       <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 animate-pulse">
                         Low Stock
                       </span>
@@ -446,22 +525,37 @@ const ProductDetailsPage = () => {
           {!isBrand && (
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {parseFloat(product.price) > 0 
-                  ? `Get This Product (${formattedPrice})` 
+                {parseFloat(product.price) > 0
+                  ? `Get This Product (${formattedPrice})`
                   : "Get This Trial Product"}
               </h3>
-              
-              {product.manageInventory && product.inventory <= 0 ? (
+
+              {!isActuallyInStock ? (
                 <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-center">
-                  <svg className="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-6 h-6 mx-auto mb-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   <p className="font-medium">Out of Stock</p>
-                  <p className="text-sm mt-1">This product is currently unavailable</p>
+                  <p className="text-sm mt-1">
+                    This product is currently unavailable
+                  </p>
                 </div>
               ) : (
                 <div className="mb-4">
-                  <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="quantity"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Quantity
                   </label>
                   <div className="flex items-center">
@@ -470,49 +564,104 @@ const ProductDetailsPage = () => {
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
                       disabled={!isAuthenticated}
                       className={`p-2 border border-gray-300 rounded-l-md text-gray-600 ${
-                        isAuthenticated ? 'hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'
+                        isAuthenticated
+                          ? "hover:bg-gray-100"
+                          : "opacity-50 cursor-not-allowed"
                       }`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M20 12H4"
+                        />
                       </svg>
                     </button>
                     <input
                       type="number"
                       id="quantity"
                       min="1"
+                      max={product.manageInventory ? availableStock : undefined}
                       value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(e) => {
+                        const newQuantity = parseInt(e.target.value) || 1;
+                        // Limit quantity to stock if managed
+                        if (product.manageInventory && availableStock) {
+                          setQuantity(
+                            Math.min(Math.max(1, newQuantity), availableStock)
+                          );
+                        } else {
+                          setQuantity(Math.max(1, newQuantity));
+                        }
+                      }}
                       disabled={!isAuthenticated}
                       className={`p-2 w-16 text-center border-y border-gray-300 ${
-                        !isAuthenticated && 'opacity-50 cursor-not-allowed'
+                        !isAuthenticated && "opacity-50 cursor-not-allowed"
                       }`}
                     />
                     <button
                       type="button"
-                      onClick={() => setQuantity(quantity + 1)}
-                      disabled={!isAuthenticated}
+                      onClick={() => {
+                        if (product.manageInventory && availableStock) {
+                          setQuantity(Math.min(quantity + 1, availableStock));
+                        } else {
+                          setQuantity(quantity + 1);
+                        }
+                      }}
+                      disabled={
+                        !isAuthenticated ||
+                        (product.manageInventory && quantity >= availableStock)
+                      }
                       className={`p-2 border border-gray-300 rounded-r-md text-gray-600 ${
-                        isAuthenticated ? 'hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'
+                        isAuthenticated &&
+                        (!product.manageInventory || quantity < availableStock)
+                          ? "hover:bg-gray-100"
+                          : "opacity-50 cursor-not-allowed"
                       }`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
                       </svg>
                     </button>
                   </div>
-                  
-                  {product.manageInventory && product.inventory < 10 && (
+
+                  {product.manageInventory && availableStock < 10 && (
                     <div className="mt-2 p-2 bg-orange-50 border border-orange-100 rounded-md">
                       <p className="text-orange-600 text-sm flex items-center font-medium animate-pulse">
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                          className="w-4 h-4 mr-1"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
-                        Only {product.inventory} left in stock - order soon!
+                        Only {availableStock} left in stock - order soon!
                       </p>
                     </div>
                   )}
-                  
+
                   {parseFloat(product.price) > 0 && (
                     <p className="mt-1 text-xs text-gray-500">
                       Total: {formatPrice(convertedPrice * quantity)}
@@ -520,28 +669,34 @@ const ProductDetailsPage = () => {
                   )}
                 </div>
               )}
-              
+
               {isAuthenticated ? (
                 <button
                   onClick={handleAddToCart}
-                  disabled={addedToCart || (product.manageInventory && product.inventory <= 0)}
+                  disabled={
+                    addedToCart || !isActuallyInStock || isInCart(product._id)
+                  }
                   className={`w-full py-2 px-4 rounded ${
                     addedToCart
-                      ? 'bg-green-500 text-white'
+                      ? "bg-green-500 text-white"
                       : isInCart(product._id)
-                      ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                      : (product.manageInventory && product.inventory <= 0)
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      ? "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                      : !isActuallyInStock
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
                   } transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 >
-                  {addedToCart 
-                    ? 'Added to Cart!' 
-                    : isInCart(product._id) 
-                    ? 'Already in Cart'
-                    : (product.manageInventory && product.inventory <= 0)
-                    ? 'Out of Stock'
-                    : `Add to Cart ${parseFloat(product.price) > 0 ? '- ' + formattedPrice : ''}`}
+                  {addedToCart
+                    ? "Added to Cart!"
+                    : isInCart(product._id)
+                    ? "Already in Cart"
+                    : !isActuallyInStock
+                    ? "Out of Stock"
+                    : `Add to Cart ${
+                        parseFloat(product.price) > 0
+                          ? "- " + formattedPrice
+                          : ""
+                      }`}
                 </button>
               ) : (
                 <div className="space-y-3">
@@ -549,14 +704,14 @@ const ProductDetailsPage = () => {
                     Please log in or sign up to add products to your cart
                   </div>
                   <div className="flex space-x-2">
-                    <Link 
-                      to="/login" 
+                    <Link
+                      to="/login"
                       className="flex-1 py-2 px-4 rounded bg-blue-600 hover:bg-blue-700 text-white text-center transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                       Log In
                     </Link>
-                    <Link 
-                      to="/register" 
+                    <Link
+                      to="/register"
                       className="flex-1 py-2 px-4 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
                     >
                       Sign Up
@@ -564,19 +719,22 @@ const ProductDetailsPage = () => {
                   </div>
                 </div>
               )}
-              
+
               {isAuthenticated && isInCart(product._id) && !addedToCart && (
                 <div className="mt-2 text-center">
-                  <Link to="/cart" className="text-sm text-blue-600 hover:text-blue-800">
+                  <Link
+                    to="/cart"
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
                     View in Cart
                   </Link>
                 </div>
               )}
-              
+
               <p className="text-xs text-gray-500 mt-4">
-                {parseFloat(product.price) > 0 
-                  ? 'This product requires payment before use.' 
-                  : 'Trial products are free to test. Add them to your cart for tracking purposes.'}
+                {parseFloat(product.price) > 0
+                  ? "This product requires payment before use."
+                  : "Trial products are free to test. Add them to your cart for tracking purposes."}
               </p>
             </div>
           )}
@@ -588,22 +746,28 @@ const ProductDetailsPage = () => {
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all duration-300 scale-100">
             <div className="flex items-center mb-4 text-red-600">
-              <svg 
-                className="h-8 w-8 mr-2" 
-                xmlns="http://www.w3.org/2000/svg" 
-                fill="none" 
-                viewBox="0 0 24 24" 
+              <svg
+                className="h-8 w-8 mr-2"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
               <h3 className="text-xl font-bold text-gray-900">
                 Confirm Delete
               </h3>
             </div>
             <p className="text-gray-700 mb-6">
-              Are you sure you want to delete "<span className="font-semibold">{product.title}</span>"? This action
-              cannot be undone.
+              Are you sure you want to delete "
+              <span className="font-semibold">{product.title}</span>"? This
+              action cannot be undone.
             </p>
             <div className="flex justify-end space-x-3">
               <button
@@ -619,13 +783,31 @@ const ProductDetailsPage = () => {
               >
                 {loading ? (
                   <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Deleting...
                   </span>
-                ) : "Delete Product"}
+                ) : (
+                  "Delete Product"
+                )}
               </button>
             </div>
           </div>

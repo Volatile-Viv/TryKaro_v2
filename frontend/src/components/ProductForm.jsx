@@ -9,17 +9,21 @@ const ProductForm = ({ initialData, onSubmit, isLoading, error }) => {
   const isEditMode = !!initialData?._id;
 
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    category: "",
-    link: "",
-    image: "",
-    status: "live",
-    tags: "",
-    price: "0",
-    currency: "INR",
-    inventory: "",
-    manageInventory: false
+    title: initialData?.title || "",
+    description: initialData?.description || "",
+    category: initialData?.category || "web-app",
+    link: initialData?.link || "",
+    image: initialData?.image || "",
+    status: initialData?.status || "live",
+    tags: initialData?.tags ? initialData.tags.join(", ") : "",
+    price: initialData?.price || 0,
+    currency: initialData?.currency || "USD",
+    inventory: initialData?.inventory || 0,
+    manageInventory:
+      initialData?.manageInventory !== undefined
+        ? initialData.manageInventory
+        : true,
+    inStock: initialData?.inStock !== undefined ? initialData.inStock : true,
   });
 
   // Initialize form with initial data when available
@@ -36,14 +40,15 @@ const ProductForm = ({ initialData, onSubmit, isLoading, error }) => {
         price: initialData.price?.toString() || "0",
         currency: initialData.currency || "INR",
         inventory: initialData.inventory?.toString() || "",
-        manageInventory: initialData.inventory !== undefined && initialData.inventory !== null
+        stock: initialData.stock?.toString() || "0",
+        manageInventory: initialData.manageInventory !== false,
       });
     }
   }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
+    if (type === "checkbox") {
       setFormData({ ...formData, [name]: checked });
     } else {
       setFormData({ ...formData, [name]: value });
@@ -64,16 +69,18 @@ const ProductForm = ({ initialData, onSubmit, isLoading, error }) => {
         : [],
     };
 
-    // Handle inventory
-    if (formData.manageInventory && formData.inventory) {
-      processedData.inventory = parseInt(formData.inventory);
+    // Handle inventory and stock
+    if (formData.manageInventory) {
+      if (formData.inventory) {
+        processedData.inventory = parseInt(formData.inventory);
+      }
     } else {
-      // If not managing inventory, remove the property
-      delete processedData.inventory;
+      // If not managing inventory, set high value to indicate unlimited
+      processedData.inventory = 9999;
     }
-    
-    // Remove manageInventory field as it's not needed in the API
-    delete processedData.manageInventory;
+
+    // Set inStock based on inventory levels
+    processedData.inStock = parseInt(processedData.inventory) > 0;
 
     onSubmit(processedData);
   };
@@ -298,29 +305,40 @@ const ProductForm = ({ initialData, onSubmit, isLoading, error }) => {
               htmlFor="manageInventory"
               className="ml-2 block text-gray-700 text-sm font-bold"
             >
-              Manage Inventory
+              Manage Inventory & Stock
             </label>
           </div>
-          
+
           {formData.manageInventory && (
-            <div className="mt-2">
-              <label
-                className="block text-gray-700 text-sm font-bold mb-2"
-                htmlFor="inventory"
-              >
-                Quantity Available
-              </label>
-              <input
-                type="number"
-                id="inventory"
-                name="inventory"
-                value={formData.inventory}
-                onChange={handleChange}
-                min="0"
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                placeholder="Enter available quantity"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div>
+                <label
+                  className="block text-gray-700 text-sm font-bold mb-2"
+                  htmlFor="inventory"
+                >
+                  Inventory
+                </label>
+                <input
+                  type="number"
+                  id="inventory"
+                  name="inventory"
+                  value={formData.inventory}
+                  onChange={handleChange}
+                  min="0"
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  placeholder="Maximum items available overall"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Total items you plan to sell (optional)
+                </p>
+              </div>
             </div>
+          )}
+
+          {!formData.manageInventory && (
+            <p className="mt-1 text-xs text-gray-500">
+              Stock will be set to unlimited
+            </p>
           )}
         </div>
 
@@ -375,8 +393,11 @@ ProductForm.propTypes = {
     image: PropTypes.string,
     status: PropTypes.string,
     tags: PropTypes.arrayOf(PropTypes.string),
-    price: PropTypes.string,
+    price: PropTypes.number,
     currency: PropTypes.string,
+    inventory: PropTypes.number,
+    manageInventory: PropTypes.bool,
+    inStock: PropTypes.bool,
   }),
   onSubmit: PropTypes.func.isRequired,
   isLoading: PropTypes.bool,

@@ -39,6 +39,20 @@ const UserSchema = new mongoose.Schema(
       type: String,
       maxlength: [500, "Bio cannot be more than 500 characters"],
     },
+    age: {
+      type: Number,
+      min: [13, "Must be at least 13 years old"],
+      max: [120, "Age cannot be more than 120"]
+    },
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other", "Not Specified"],
+      default: "Not Specified"
+    },
+    interests: {
+      type: [String],
+      default: []
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
   },

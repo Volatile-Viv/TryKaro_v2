@@ -6,6 +6,8 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  getUserProducts,
+  updateInventory,
 } = require("../controllers/productController");
 const { getReviews, createReview } = require("../controllers/reviewController");
 const { protect, authorize } = require("../middleware/auth");
@@ -26,14 +28,19 @@ router.get("/", (req, res, next) => {
   getProducts(req, res, next);
 });
 
+// @route   GET /api/products/user
+// @desc    Get products created by current user
+// @access  Private
+router.get("/user", protect, getUserProducts);
+
 // @route   GET /api/products/:id
 // @desc    Get single product
 // @access  Public
 router.get("/:id", getProduct);
 
 // @route   POST /api/products
-// @desc    Create a product
-// @access  Private (Brands only)
+// @desc    Create new product
+// @access  Private (Brand)
 router.post(
   "/",
   [
@@ -48,14 +55,19 @@ router.post(
 );
 
 // @route   PUT /api/products/:id
-// @desc    Update a product
+// @desc    Update product
 // @access  Private (Product owner or Admin)
 router.put("/:id", protect, updateProduct);
 
 // @route   DELETE /api/products/:id
-// @desc    Delete a product
+// @desc    Delete product
 // @access  Private (Product owner or Admin)
 router.delete("/:id", protect, deleteProduct);
+
+// @route   PUT /api/products/:id/inventory
+// @desc    Update product inventory
+// @access  Private (Product owner or Admin)
+router.put("/:id/inventory", protect, updateInventory);
 
 // Review routes
 
@@ -66,7 +78,7 @@ router.get("/:productId/reviews", getReviews);
 
 // @route   POST /api/products/:productId/reviews
 // @desc    Create a review
-// @access  Private (Users only)
+// @access  Private (Tester role only)
 router.post(
   "/:productId/reviews",
   [
@@ -77,7 +89,7 @@ router.post(
     check("text", "Review text is required").not().isEmpty(),
   ],
   protect,
-  authorize("User", "admin"),
+  authorize("Tester"),
   createReview
 );
 
